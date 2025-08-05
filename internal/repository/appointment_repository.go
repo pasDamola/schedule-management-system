@@ -274,3 +274,10 @@ func (r *appointmentRepository) CheckConflict(ctx context.Context, startTime, en
 			startTime, endTime,
 		).Scan(&hasConflict)
 	}
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check appointment conflict: %v", err)
+	}
+
+	return hasConflict, nil
+}
