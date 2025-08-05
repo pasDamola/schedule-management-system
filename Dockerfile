@@ -20,11 +20,14 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Generate protobuf files
-RUN mkdir -p pkg/pb
-RUN protoc --go_out=pkg/pb --go_opt=paths=source_relative \
-    --go-grpc_out=pkg/pb --go-grpc_opt=paths=source_relative \
-    proto/appointment/appointment.proto
+# Change directory to proto and generate protobuf files into ../pkg/pb
+WORKDIR /app/proto
+RUN protoc --go_out=../pkg/pb --go_opt=paths=source_relative \
+    --go-grpc_out=../pkg/pb --go-grpc_opt=paths=source_relative \
+    appointment/appointment.proto
+
+# Back to app directory for building
+WORKDIR /app
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/server/main.go
