@@ -17,8 +17,8 @@ type AppointmentService interface {
 	UpdateAppointment(ctx context.Context, req *models.UpdateAppointmentRequest) (*models.Appointment, error)
 	DeleteAppointment(ctx context.Context, id uuid.UUID) error
 	ListAppointments(ctx context.Context, req *models.ListAppointmentsRequest) (*models.ListAppointmentsResponse, error)
-	SubscribeToUpdates() <-chan AppointmentEvent
-	UnsubscribeFromUpdates(ch <-chan AppointmentEvent)
+	SubscribeToUpdates() chan AppointmentEvent
+	UnsubscribeFromUpdates(ch chan AppointmentEvent)
 }
 
 type EventType int
@@ -163,7 +163,7 @@ func (s *appointmentService) ListAppointments(ctx context.Context, req *models.L
 	return response, nil
 }
 
-func (s *appointmentService) SubscribeToUpdates() <-chan AppointmentEvent {
+func (s *appointmentService) SubscribeToUpdates() chan AppointmentEvent {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -174,15 +174,14 @@ func (s *appointmentService) SubscribeToUpdates() <-chan AppointmentEvent {
 	return ch
 }
 
-func (s *appointmentService) UnsubscribeFromUpdates(ch <-chan AppointmentEvent) {
+func (s *appointmentService) UnsubscribeFromUpdates(ch chan AppointmentEvent) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if readOnlyChan, ok := ch.(chan AppointmentEvent); ok {
-		delete(s.subscribers, readOnlyChan)
-		close(readOnlyChan)
-		logrus.Info("Subscriber removed from appointment updates")
-	}
+	delete(s.subscribers, ch)
+	close(ch)
+	logrus.Info("Subscriber removed from appointment updates")
+	
 }
 
 func (s *appointmentService) notifySubscribers(event AppointmentEvent) {
