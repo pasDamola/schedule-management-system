@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package appointment;
+
+option go_package = "github.com/pasDamola/schedule-management-system/pkg/pb";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Appointment message definition
+message Appointment {
+  string id = 1;
+  string title = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// Request messages
+message CreateAppointmentRequest {
+  string title = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+}
+
+message GetAppointmentRequest {
+  string id = 1;
+}
+
+message UpdateAppointmentRequest {
+  string id = 1;
+  string title = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+}
+
+message DeleteAppointmentRequest {
+  string id = 1;
+}
+
+message ListAppointmentsRequest {
+  int32 page = 1;
+  int32 limit = 2;
+  string search = 3;
+  google.protobuf.Timestamp start_date = 4;
+  google.protobuf.Timestamp end_date = 5;
+}
+
+message ListAppointmentsResponse {
+  repeated Appointment appointments = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+message AppointmentStreamResponse {
+  enum EventType {
+    CREATED = 0;
+    UPDATED = 1;
+    DELETED = 2;
+  }
+  EventType event_type = 1;
+  Appointment appointment = 2;
+}
+
+// AppointmentService definition
+service AppointmentService {
+  // CRUD operations
+  rpc CreateAppointment(CreateAppointmentRequest) returns (Appointment);
+  rpc GetAppointment(GetAppointmentRequest) returns (Appointment);
+  rpc UpdateAppointment(UpdateAppointmentRequest) returns (Appointment);
+  rpc DeleteAppointment(DeleteAppointmentRequest) returns (google.protobuf.Empty);
+  rpc ListAppointments(ListAppointmentsRequest) returns (ListAppointmentsResponse);
+  
+  // Real-time streaming
+  rpc StreamAppointments(google.protobuf.Empty) returns (stream AppointmentStreamResponse);
+}
