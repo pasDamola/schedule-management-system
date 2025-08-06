@@ -72,44 +72,6 @@ func (s *AppointmentServer) GetAppointment(ctx context.Context, req *pb.GetAppoi
 	return s.appointmentToProto(appointment), nil
 }
 
-func (s *AppointmentServer) UpdateAppointment(ctx context.Context, req *pb.UpdateAppointmentRequest) (*pb.Appointment, error) {
-	logrus.WithField("id", req.Id).Info("Updating appointment")
-
-	id, err := uuid.Parse(req.Id)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid appointment ID: %v", err)
-	}
-
-	if req.Title == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "title is required")
-	}
-	if req.StartTime == nil || req.EndTime == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "start_time and end_time are required")
-	}
-
-	startTime := req.StartTime.AsTime()
-	endTime := req.EndTime.AsTime()
-
-	// Additional validation
-	if err := service.ValidateAppointmentTime(startTime, endTime); err != nil {
-		return nil, s.handleServiceError(err)
-	}
-
-	updateReq := &models.UpdateAppointmentRequest{
-		ID:        id,
-		Title:     req.Title,
-		StartTime: startTime,
-		EndTime:   endTime,
-	}
-
-	appointment, err := s.service.UpdateAppointment(ctx, updateReq)
-	if err != nil {
-		return nil, s.handleServiceError(err)
-	}
-
-	return s.appointmentToProto(appointment), nil
-}
-
 func (s *AppointmentServer) DeleteAppointment(ctx context.Context, req *pb.DeleteAppointmentRequest) (*emptypb.Empty, error) {
 	logrus.WithField("id", req.Id).Info("Deleting appointment")
 

@@ -16,7 +16,6 @@ import (
 type AppointmentRepository interface {
 	Create(ctx context.Context, appointment *models.CreateAppointmentRequest) (*models.Appointment, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.Appointment, error)
-	Update(ctx context.Context, appointment *models.UpdateAppointmentRequest) (*models.Appointment, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, req *models.ListAppointmentsRequest) (*models.ListAppointmentsResponse, error)
 	CheckConflict(ctx context.Context, startTime, endTime time.Time, excludeID *uuid.UUID) (bool, error)
@@ -107,54 +106,6 @@ func (r *appointmentRepository) GetByID(ctx context.Context, id uuid.UUID) (*mod
 	return appointment, nil
 }
 
-func (r *appointmentRepository) Update(ctx context.Context, req *models.UpdateAppointmentRequest) (*models.Appointment, error) {
-	// Start transaction for conflict checking and update
-	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback()
-
-	// Check for conflicts excluding current appointment
-	var hasConflict bool
-	err = tx.QueryRowContext(ctx,
-		"SELECT check_appointment_conflict($1, $2, $3)",
-		req.StartTime, req.EndTime, req.ID,
-	).Scan(&hasConflict)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check conflicts: %v", err)
-	}
-
-	if hasConflict {
-		return nil, models.ErrAppointmentConflict
-	}
-
-	// Update appointment
-	query := `
-		UPDATE appointments
-		SET title = $2, start_time = $3, end_time = $4, updated_at = NOW()
-		WHERE id = $1
-		RETURNING id, title, start_time, end_time, created_at, updated_at`
-
-	appointment := &models.Appointment{}
-	err = tx.QueryRowContext(ctx, query, req.ID, req.Title, req.StartTime, req.EndTime).Scan(
-		&appointment.ID, &appointment.Title, &appointment.StartTime,
-		&appointment.EndTime, &appointment.CreatedAt, &appointment.UpdatedAt,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, models.ErrAppointmentNotFound
-		}
-		return nil, fmt.Errorf("failed to update appointment: %v", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
-
-	logrus.WithField("appointment_id", appointment.ID).Info("Appointment updated successfully")
-	return appointment, nil
-}
 
 func (r *appointmentRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM appointments WHERE id = $1`

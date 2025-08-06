@@ -14,7 +14,6 @@ import (
 type AppointmentService interface {
 	CreateAppointment(ctx context.Context, req *models.CreateAppointmentRequest) (*models.Appointment, error)
 	GetAppointment(ctx context.Context, id uuid.UUID) (*models.Appointment, error)
-	UpdateAppointment(ctx context.Context, req *models.UpdateAppointmentRequest) (*models.Appointment, error)
 	DeleteAppointment(ctx context.Context, id uuid.UUID) error
 	ListAppointments(ctx context.Context, req *models.ListAppointmentsRequest) (*models.ListAppointmentsResponse, error)
 	SubscribeToUpdates() chan AppointmentEvent
@@ -84,31 +83,6 @@ func (s *appointmentService) GetAppointment(ctx context.Context, id uuid.UUID) (
 		return nil, err
 	}
 
-	return appointment, nil
-}
-
-func (s *appointmentService) UpdateAppointment(ctx context.Context, req *models.UpdateAppointmentRequest) (*models.Appointment, error) {
-	// Validate request
-	if err := req.Validate(); err != nil {
-		logrus.WithError(err).Error("Invalid update appointment request")
-		return nil, err
-	}
-
-	// Update appointment
-	appointment, err := s.repo.Update(ctx, req)
-	if err != nil {
-		logrus.WithError(err).WithField("appointment_id", req.ID).Error("Failed to update appointment")
-		return nil, err
-	}
-
-	// Notify subscribers
-	s.notifySubscribers(AppointmentEvent{
-		Type:        EventTypeUpdated,
-		Appointment: appointment,
-		Timestamp:   time.Now(),
-	})
-
-	logrus.WithField("appointment_id", appointment.ID).Info("Appointment updated successfully")
 	return appointment, nil
 }
 

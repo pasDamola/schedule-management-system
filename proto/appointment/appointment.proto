@@ -28,12 +28,6 @@ message GetAppointmentRequest {
   string id = 1;
 }
 
-message UpdateAppointmentRequest {
-  string id = 1;
-  string title = 2;
-  google.protobuf.Timestamp start_time = 3;
-  google.protobuf.Timestamp end_time = 4;
-}
 
 message DeleteAppointmentRequest {
   string id = 1;
@@ -69,7 +63,6 @@ service AppointmentService {
   // CRUD operations
   rpc CreateAppointment(CreateAppointmentRequest) returns (Appointment);
   rpc GetAppointment(GetAppointmentRequest) returns (Appointment);
-  rpc UpdateAppointment(UpdateAppointmentRequest) returns (Appointment);
   rpc DeleteAppointment(DeleteAppointmentRequest) returns (google.protobuf.Empty);
   rpc ListAppointments(ListAppointmentsRequest) returns (ListAppointmentsResponse);
   
