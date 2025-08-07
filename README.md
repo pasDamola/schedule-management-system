@@ -61,7 +61,7 @@ A full-stack appointment scheduling application built with React, TypeScript, Go
 1. **Clone the repository**
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/pasDamola/schedule-management-system.git
    cd schedule-management-system
    ```
 
