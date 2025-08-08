@@ -2,6 +2,10 @@
 
 A full-stack appointment scheduling application built with React, TypeScript, Go, gRPC, and PostgreSQL.
 
+## Video Demonstration
+
+[Watch demo video here](https://www.loom.com/share/075d28f4fc584061be61ee0b23a9e686?sid=a1346dc1-ea51-4669-9d37-73baf21dde2d)
+
 ## 🚀 Features
 
 ### Core Features

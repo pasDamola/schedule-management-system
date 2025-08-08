@@ -44,7 +44,7 @@ static_resources:
 
   clusters:
     - name: grpc-backend
-      connect_timeout: 10s
+      connect_timeout: 60s
       type: strict_dns
       http2_protocol_options: {}
       lb_policy: round_robin
