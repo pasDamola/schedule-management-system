@@ -46,24 +46,27 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
         setStartDate(today.toISOString().split("T")[0]);
         setEndDate(today.toISOString().split("T")[0]);
         break;
-      case "tomorrow":
+      case "tomorrow": {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         setStartDate(tomorrow.toISOString().split("T")[0]);
         setEndDate(tomorrow.toISOString().split("T")[0]);
         break;
-      case "week":
+      }
+      case "week": {
         const weekEnd = new Date(today);
         weekEnd.setDate(weekEnd.getDate() + 7);
         setStartDate(today.toISOString().split("T")[0]);
         setEndDate(weekEnd.toISOString().split("T")[0]);
         break;
-      case "month":
+      }
+      case "month": {
         const monthEnd = new Date(today);
         monthEnd.setMonth(monthEnd.getMonth() + 1);
         setStartDate(today.toISOString().split("T")[0]);
         setEndDate(monthEnd.toISOString().split("T")[0]);
         break;
+      }
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import { AppointmentForm } from "./components/AppointmentForm";
@@ -29,13 +29,7 @@ const AppointmentManager: React.FC = () => {
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { subscribeToUpdates } = useAppointmentUpdates();
-
-  // Subscribe to real-time updates
-  useEffect(() => {
-    const unsubscribe = subscribeToUpdates();
-    return () => unsubscribe.cancel();
-  }, []);
+  useAppointmentUpdates();
 
   const handleEditAppointment = (appointment: Appointment) => {
     setEditingAppointment(appointment);

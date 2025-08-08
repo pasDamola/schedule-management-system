@@ -1,27 +1,72 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import { useEffect } from "react";
+
 import { appointmentClient } from "../services/appointmentClient";
-import * as appointmentPb from "../proto/appointment_pb"; // Namespace import
-import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
+
 import {
-  Appointment,
-  ListAppointmentsRequest,
-  ListAppointmentsResponse,
-  CreateAppointmentRequest,
-} from "../types/appointment";
+  Appointment as ProtoAppointment,
+  CreateAppointmentRequest as ProtoCreateAppointmentRequest,
+  ListAppointmentsRequest as ProtoListAppointmentsRequest,
+  AppointmentStreamResponse,
+  AppointmentStreamResponse_EventType,
+} from "../proto/appointment/appointment";
+import { Timestamp } from "../proto/google/protobuf/timestamp";
 
-// Create type aliases for cleaner usage
-type ProtoAppointment = appointmentPb.Appointment;
-type ProtoAppointmentStreamResponse = appointmentPb.AppointmentStreamResponse;
+export interface Appointment {
+  id: string;
+  title: string;
+  startTime: Date;
+  endTime: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
+export interface ListAppointmentsRequest {
+  page?: number;
+  limit?: number;
+  search?: string;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+export interface ListAppointmentsResponse {
+  appointments: Appointment[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface CreateAppointmentRequest {
+  title: string;
+  startTime: Date;
+  endTime: Date;
+}
+
+export interface UpdateAppointmentRequest {
+  id: string;
+  title: string;
+  startTime: Date;
+  endTime: Date;
+}
+
+// ==================================================================
+// 3. TRANSLATION HELPERS (THE "BOUNDARY")
+// ==================================================================
+// This helper converts the gRPC response (with Timestamp objects)
+// into our clean application-level Appointment (with Date objects).
 const protoToAppointment = (proto: ProtoAppointment): Appointment => ({
-  id: proto.getId(),
-  title: proto.getTitle(),
-  startTime: proto.getStartTime()?.toDate() || new Date(),
-  endTime: proto.getEndTime()?.toDate() || new Date(),
-  createdAt: proto.getCreatedAt()?.toDate() || new Date(),
-  updatedAt: proto.getUpdatedAt()?.toDate() || new Date(),
+  id: proto.id,
+  title: proto.title,
+  startTime: proto.startTime ? Timestamp.toDate(proto.startTime) : new Date(),
+  endTime: proto.endTime ? Timestamp.toDate(proto.endTime) : new Date(),
+  createdAt: proto.createdAt ? Timestamp.toDate(proto.createdAt) : new Date(),
+  updatedAt: proto.updatedAt ? Timestamp.toDate(proto.updatedAt) : new Date(),
 });
+
+// ==================================================================
+// 4. REACT QUERY HOOKS
+// ==================================================================
 
 // --- Query Keys ---
 export const appointmentKeys = {
@@ -38,21 +83,29 @@ export const useAppointments = (filters: ListAppointmentsRequest = {}) => {
   return useQuery({
     queryKey: appointmentKeys.list(filters),
     queryFn: async (): Promise<ListAppointmentsResponse> => {
-      const response = await appointmentClient.listAppointments(
-        filters.page || 1,
-        filters.limit || 20,
-        filters.search || ""
-      );
+      // Translate our app-level request (with Date) to the gRPC request (with Timestamp)
+      const grpcRequest: ProtoListAppointmentsRequest = {
+        page: filters.page || 1,
+        limit: filters.limit || 20,
+        search: filters.search || "",
+        // Translate Date to Timestamp at the boundary
+        startDate: filters.startDate
+          ? Timestamp.fromDate(filters.startDate)
+          : undefined,
+        endDate: filters.endDate
+          ? Timestamp.fromDate(filters.endDate)
+          : undefined,
+      };
 
+      const response = await appointmentClient.listAppointments(grpcRequest);
+
+      // Translate the gRPC response back to our clean app-level response
       return {
-        appointments: response.getAppointmentsList().map(protoToAppointment),
-        total: response.getTotal(),
-        page: response.getPage(),
-        limit: response.getLimit(),
+        ...response,
+        appointments: response.appointments.map(protoToAppointment),
       };
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000,
   });
 };
 
@@ -64,8 +117,8 @@ export const useAppointment = (id: string) => {
       const response = await appointmentClient.getAppointment(id);
       return protoToAppointment(response);
     },
-    enabled: !!id, // Only run query if id is provided
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 };
 
@@ -77,15 +130,15 @@ export const useCreateAppointment = () => {
     mutationFn: async (
       data: CreateAppointmentRequest
     ): Promise<Appointment> => {
-      const response = await appointmentClient.createAppointment(
-        data.title,
-        data.startTime,
-        data.endTime
-      );
+      const grpcRequest: ProtoCreateAppointmentRequest = {
+        title: data.title,
+        startTime: Timestamp.fromDate(data.startTime),
+        endTime: Timestamp.fromDate(data.endTime),
+      };
+      const response = await appointmentClient.createAppointment(grpcRequest);
       return protoToAppointment(response);
     },
     onSuccess: () => {
-      // Invalidate lists to refetch
       queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
       toast.success("Appointment created successfully!");
     },
@@ -102,10 +155,8 @@ export const useDeleteAppointment = () => {
 
   return useMutation({
     mutationFn: (id: string) => appointmentClient.deleteAppointment(id),
-    onSuccess: (_, deletedId) => {
-      // Invalidate lists to refetch from the server
+    onSuccess: (_: unknown, deletedId: string) => {
       queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
-      // Also remove the now-stale detail query from the cache
       queryClient.removeQueries({
         queryKey: appointmentKeys.detail(deletedId),
       });
@@ -119,61 +170,79 @@ export const useDeleteAppointment = () => {
 };
 
 export const useAppointmentUpdates = () => {
+  // Get access to the query client so we can update the cache
   const queryClient = useQueryClient();
 
-  const subscribeToUpdates = () => {
-    return appointmentClient.streamAppointments(
-      (event) => {
-        const eventType = event.getEventType();
-        const appointment = event.hasAppointment()
-          ? protoToAppointment(event.getAppointment()!)
-          : null;
+  useEffect(() => {
+    let isSubscribed = true;
 
-        switch (eventType) {
-          case appointmentPb.AppointmentStreamResponse.EventType.CREATED:
-            queryClient.invalidateQueries({
-              queryKey: appointmentKeys.lists(),
-            });
-            if (appointment) {
-              toast.success(`New appointment: ${appointment.title}`);
-            }
-            break;
+    const handleStreamEvent = (event: AppointmentStreamResponse) => {
+      // Get the translated, clean appointment object
+      const appointment = event.appointment
+        ? protoToAppointment(event.appointment)
+        : null;
+      if (!appointment) return; // Ignore events without an appointment
 
-          case appointmentPb.AppointmentStreamResponse.EventType.UPDATED:
-            if (appointment) {
-              queryClient.setQueryData(
-                appointmentKeys.detail(appointment.id),
-                appointment
-              );
-              queryClient.invalidateQueries({
-                queryKey: appointmentKeys.lists(),
-              });
-            }
-            break;
+      console.log(
+        `[STREAM] Received event: ${
+          AppointmentStreamResponse_EventType[event.eventType]
+        } for ${appointment.title}`
+      );
 
-          case appointmentPb.AppointmentStreamResponse.EventType.DELETED:
-            if (appointment) {
-              queryClient.removeQueries({
-                queryKey: appointmentKeys.detail(appointment.id),
-              });
-              queryClient.invalidateQueries({
-                queryKey: appointmentKeys.lists(),
-              });
-              toast.success(`Appointment deleted: ${appointment.title}`);
-            }
-            break;
-        }
-      },
-      (err) => {
-        console.error("Stream error:", err);
-        setTimeout(subscribeToUpdates, 3000); // reconnect
-      },
-      () => {
-        console.warn("Stream ended");
-        setTimeout(subscribeToUpdates, 3000); // reconnect
+      switch (event.eventType) {
+        case AppointmentStreamResponse_EventType.CREATED:
+          // When a new item is created, the simplest and most reliable
+          // way to update is to refetch the entire list.
+          queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+          toast.success(`New appointment: ${appointment.title}`);
+          break;
+
+        case AppointmentStreamResponse_EventType.UPDATED:
+          // When an item is updated, we can be more surgical.
+          // Update the specific item's cache...
+          queryClient.setQueryData(
+            appointmentKeys.detail(appointment.id),
+            appointment
+          );
+          // ...and then invalidate the lists to show the change.
+          queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+          toast(`Appointment updated: ${appointment.title}`);
+          break;
+
+        case AppointmentStreamResponse_EventType.DELETED:
+          // When an item is deleted, remove it from the cache...
+          queryClient.removeQueries({
+            queryKey: appointmentKeys.detail(appointment.id),
+          });
+          // ...and invalidate the lists.
+          queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+          toast.error(`Appointment deleted: ${appointment.title}`);
+          break;
       }
-    );
-  };
+    };
 
-  return { subscribeToUpdates };
+    async function listenForUpdates() {
+      const stream = appointmentClient.streamAppointments();
+      try {
+        for await (const event of stream.responses) {
+          if (!isSubscribed) break;
+          handleStreamEvent(event);
+        }
+      } catch (error) {
+        if (isSubscribed) {
+          console.error("Appointment stream disconnected with error:", error);
+          // Optionally, you could add logic here to try and reconnect after a delay.
+        }
+      }
+    }
+
+    // Start listening when the hook is mounted
+    listenForUpdates();
+
+    // Cleanup function that runs when the component using the hook unmounts
+    return () => {
+      isSubscribed = false;
+      console.log("[STREAM] Unsubscribed from appointment updates.");
+    };
+  }, [queryClient]); // Rerun the effect if the queryClient instance changes
 };

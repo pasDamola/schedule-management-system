@@ -23,6 +23,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const createMutation = useCreateAppointment();
 
+  const isEditing = !!appointment;
   const isLoading = createMutation.isPending;
 
   const {
@@ -30,7 +31,6 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
     setValue,
   } = useForm<FormData>({
     defaultValues: {
@@ -42,7 +42,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   });
 
   // Watch form values for real-time validation
-  const formValues = watch();
+  //   const formValues = watch();
 
   // Initialize form with appointment data if editing
   useEffect(() => {
@@ -56,25 +56,6 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
       setValue("endTime", endDate.toTimeString().slice(0, 5));
     }
   }, [appointment, setValue]);
-
-  // Real-time validation
-  useEffect(() => {
-    if (
-      formValues.title ||
-      formValues.date ||
-      formValues.startTime ||
-      formValues.endTime
-    ) {
-      const validationResult = validateAppointmentForm(formValues);
-      const errorMap: Record<string, string> = {};
-
-      validationResult.forEach((error) => {
-        errorMap[error.field] = error.message;
-      });
-
-      setValidationErrors(errorMap);
-    }
-  }, [formValues]);
 
   const onSubmit = async (data: FormData) => {
     // Validate form
@@ -92,11 +73,13 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
       const startTime = combineDateTime(data.date, data.startTime);
       const endTime = combineDateTime(data.date, data.endTime);
 
-      await createMutation.mutateAsync({
-        title: data.title.trim(),
-        startTime,
-        endTime,
-      });
+      if (appointment) {
+        await createMutation.mutateAsync({
+          title: data.title.trim(),
+          startTime,
+          endTime,
+        });
+      }
 
       reset();
       setValidationErrors({});
@@ -115,7 +98,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   return (
     <div className={`bg-white rounded-lg shadow-md p-6 ${className}`}>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">
-        Create New Appointment
+        {isEditing ? "Edit Appointment" : "Create New Appointment"}
       </h2>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -244,8 +227,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             {isLoading ? (
               <div className="flex items-center">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                "Creating..."
+                {isEditing ? "Updating..." : "Creating..."}
               </div>
+            ) : isEditing ? (
+              "Update Appointment"
             ) : (
               "Create Appointment"
             )}
