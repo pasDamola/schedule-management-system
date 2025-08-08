@@ -30,6 +30,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
     setValue,
   } = useForm<FormData>({
     defaultValues: {
@@ -41,7 +42,39 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   });
 
   // Watch form values for real-time validation
-  //   const formValues = watch();
+  const formValues = watch();
+
+  // Initialize form with appointment data if editing
+  useEffect(() => {
+    if (appointment) {
+      const startDate = new Date(appointment.startTime);
+      const endDate = new Date(appointment.endTime);
+
+      setValue("title", appointment.title);
+      setValue("date", startDate.toISOString().split("T")[0]);
+      setValue("startTime", startDate.toTimeString().slice(0, 5));
+      setValue("endTime", endDate.toTimeString().slice(0, 5));
+    }
+  }, [appointment, setValue]);
+
+  // Real-time validation
+  useEffect(() => {
+    if (
+      formValues.title ||
+      formValues.date ||
+      formValues.startTime ||
+      formValues.endTime
+    ) {
+      const validationResult = validateAppointmentForm(formValues);
+      const errorMap: Record<string, string> = {};
+
+      validationResult.forEach((error) => {
+        errorMap[error.field] = error.message;
+      });
+
+      setValidationErrors(errorMap);
+    }
+  }, [formValues]);
 
   // Initialize form with appointment data if editing
   useEffect(() => {
