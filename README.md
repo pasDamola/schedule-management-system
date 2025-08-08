@@ -147,7 +147,7 @@ A full-stack appointment scheduling application built with React, TypeScript, Go
 2. **Generate protobuf files** (if needed)
 
    ```bash
-   npm run generate-proto
+   npm run gen-proto
    ```
 
 3. **Start development server**
@@ -194,21 +194,6 @@ rpc ListAppointments(ListAppointmentsRequest) returns (ListAppointmentsResponse)
 
 ```protobuf
 rpc StreamAppointments(google.protobuf.Empty) returns (stream AppointmentStreamResponse);
-```
-
-### Data Models
-
-**Appointment**
-
-```protobuf
-message Appointment {
-  string id = 1;
-  string title = 2;
-  google.protobuf.Timestamp start_time = 3;
-  google.protobuf.Timestamp end_time = 4;
-  google.protobuf.Timestamp created_at = 5;
-  google.protobuf.Timestamp updated_at = 6;
-}
 ```
 
 ## 🧪 Testing
