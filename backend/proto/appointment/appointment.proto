@@ -7,6 +7,19 @@ option go_package = "github.com/pasDamola/schedule-management-system/pkg/pb";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
+
+// AppointmentService definition
+service AppointmentService {
+  // CRUD operations
+  rpc CreateAppointment(CreateAppointmentRequest) returns (Appointment);
+  rpc GetAppointment(GetAppointmentRequest) returns (Appointment);
+  rpc DeleteAppointment(DeleteAppointmentRequest) returns (google.protobuf.Empty);
+  rpc ListAppointments(ListAppointmentsRequest) returns (ListAppointmentsResponse);
+  
+  // Real-time streaming
+  rpc StreamAppointments(google.protobuf.Empty) returns (stream AppointmentStreamResponse);
+}
+
 // Appointment message definition
 message Appointment {
   string id = 1;
@@ -56,16 +69,4 @@ message AppointmentStreamResponse {
   }
   EventType event_type = 1;
   Appointment appointment = 2;
-}
-
-// AppointmentService definition
-service AppointmentService {
-  // CRUD operations
-  rpc CreateAppointment(CreateAppointmentRequest) returns (Appointment);
-  rpc GetAppointment(GetAppointmentRequest) returns (Appointment);
-  rpc DeleteAppointment(DeleteAppointmentRequest) returns (google.protobuf.Empty);
-  rpc ListAppointments(ListAppointmentsRequest) returns (ListAppointmentsResponse);
-  
-  // Real-time streaming
-  rpc StreamAppointments(google.protobuf.Empty) returns (stream AppointmentStreamResponse);
 }

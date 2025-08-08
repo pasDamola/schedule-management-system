@@ -34,8 +34,8 @@ const AppointmentManager: React.FC = () => {
   // Subscribe to real-time updates
   useEffect(() => {
     const unsubscribe = subscribeToUpdates();
-    return unsubscribe;
-  }, [subscribeToUpdates]);
+    return () => unsubscribe.cancel();
+  }, []);
 
   const handleEditAppointment = (appointment: Appointment) => {
     setEditingAppointment(appointment);

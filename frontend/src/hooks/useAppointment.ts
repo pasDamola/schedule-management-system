@@ -1,14 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { appointmentClient } from "../services/appointmentClient";
-
-import { AppointmentStreamResponse } from "../proto/appointment/appointment_pb";
-import {
-  Appointment as ProtoAppointment,
-  CreateAppointmentRequest as ProtoCreateAppointmentRequest,
-  ListAppointmentsRequest as ProtoListAppointmentsRequest,
-  ListAppointmentsResponse as ProtoListAppointmentsResponse,
-} from "../proto/appointment/appointment_pb"; // Adjust path if necessary
+import * as appointmentPb from "../proto/appointment_pb"; // Namespace import
 import { Timestamp } from "google-protobuf/google/protobuf/timestamp_pb";
 import {
   Appointment,
@@ -17,18 +10,18 @@ import {
   CreateAppointmentRequest,
 } from "../types/appointment";
 
-const protoToAppointment = (proto: ProtoAppointment.AsObject): Appointment => ({
-  id: proto.id,
-  title: proto.title,
-  startTime: new Date(proto.startTime!.seconds * 1000),
-  endTime: new Date(proto.endTime!.seconds * 1000),
-  createdAt: new Date(proto.createdAt!.seconds * 1000),
-  updatedAt: new Date(proto.updatedAt!.seconds * 1000),
-});
+// Create type aliases for cleaner usage
+type ProtoAppointment = appointmentPb.Appointment;
+type ProtoAppointmentStreamResponse = appointmentPb.AppointmentStreamResponse;
 
-// ==================================================================
-// 4. REACT QUERY HOOKS
-// ==================================================================
+const protoToAppointment = (proto: ProtoAppointment): Appointment => ({
+  id: proto.getId(),
+  title: proto.getTitle(),
+  startTime: proto.getStartTime()?.toDate() || new Date(),
+  endTime: proto.getEndTime()?.toDate() || new Date(),
+  createdAt: proto.getCreatedAt()?.toDate() || new Date(),
+  updatedAt: proto.getUpdatedAt()?.toDate() || new Date(),
+});
 
 // --- Query Keys ---
 export const appointmentKeys = {
@@ -45,25 +38,17 @@ export const useAppointments = (filters: ListAppointmentsRequest = {}) => {
   return useQuery({
     queryKey: appointmentKeys.list(filters),
     queryFn: async (): Promise<ListAppointmentsResponse> => {
-      // Translate plain filter object to gRPC request class
-      const grpcRequest = new ProtoListAppointmentsRequest();
-      grpcRequest.setPage(filters.page || 1);
-      grpcRequest.setLimit(filters.limit || 20);
-      grpcRequest.setSearch(filters.search || "");
-      if (filters.startDate)
-        grpcRequest.setStartDate(Timestamp.fromDate(filters.startDate));
-      if (filters.endDate)
-        grpcRequest.setEndDate(Timestamp.fromDate(filters.endDate));
+      const response = await appointmentClient.listAppointments(
+        filters.page || 1,
+        filters.limit || 20,
+        filters.search || ""
+      );
 
-      const response = await appointmentClient.listAppointments(grpcRequest);
-      const plainResponse = response.toObject();
-
-      // Translate gRPC response to our plain application response type
       return {
-        appointments: plainResponse.appointmentsList.map(protoToAppointment),
-        total: plainResponse.total,
-        page: plainResponse.page,
-        limit: plainResponse.limit,
+        appointments: response.getAppointmentsList().map(protoToAppointment),
+        total: response.getTotal(),
+        page: response.getPage(),
+        limit: response.getLimit(),
       };
     },
     staleTime: 30 * 1000, // 30 seconds
@@ -77,7 +62,7 @@ export const useAppointment = (id: string) => {
     queryKey: appointmentKeys.detail(id),
     queryFn: async (): Promise<Appointment> => {
       const response = await appointmentClient.getAppointment(id);
-      return protoToAppointment(response.toObject());
+      return protoToAppointment(response);
     },
     enabled: !!id, // Only run query if id is provided
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -92,15 +77,12 @@ export const useCreateAppointment = () => {
     mutationFn: async (
       data: CreateAppointmentRequest
     ): Promise<Appointment> => {
-      // Translate plain request object to gRPC request class
-      const grpcRequest = new ProtoCreateAppointmentRequest();
-      grpcRequest.setTitle(data.title);
-      grpcRequest.setStartTime(Timestamp.fromDate(data.startTime));
-      grpcRequest.setEndTime(Timestamp.fromDate(data.endTime));
-
-      const response = await appointmentClient.createAppointment(grpcRequest);
-      // Translate gRPC response class back to a plain object for the app
-      return protoToAppointment(response.toObject());
+      const response = await appointmentClient.createAppointment(
+        data.title,
+        data.startTime,
+        data.endTime
+      );
+      return protoToAppointment(response);
     },
     onSuccess: () => {
       // Invalidate lists to refetch
@@ -140,44 +122,57 @@ export const useAppointmentUpdates = () => {
   const queryClient = useQueryClient();
 
   const subscribeToUpdates = () => {
-    return appointmentClient.streamAppointments((event) => {
-      const eventType = event.getEventType();
-      const appointment = event.hasAppointment()
-        ? event.getAppointment()!
-        : null;
+    return appointmentClient.streamAppointments(
+      (event) => {
+        const eventType = event.getEventType();
+        const appointment = event.hasAppointment()
+          ? protoToAppointment(event.getAppointment()!)
+          : null;
 
-      switch (eventType) {
-        case AppointmentStreamResponse.EventType.CREATED:
-          queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
-          if (appointment) {
-            toast.success(`New appointment: ${appointment.getTitle()}`);
-          }
-          break;
-
-        case AppointmentStreamResponse.EventType.UPDATED:
-          if (appointment) {
-            queryClient.setQueryData(
-              appointmentKeys.detail(appointment.getId()),
-              appointment
-            );
+        switch (eventType) {
+          case appointmentPb.AppointmentStreamResponse.EventType.CREATED:
             queryClient.invalidateQueries({
               queryKey: appointmentKeys.lists(),
             });
-          }
-          break;
+            if (appointment) {
+              toast.success(`New appointment: ${appointment.title}`);
+            }
+            break;
 
-        case AppointmentStreamResponse.EventType.DELETED:
-          if (appointment) {
-            queryClient.removeQueries({
-              queryKey: appointmentKeys.detail(appointment.getId()),
-            });
-            queryClient.invalidateQueries({
-              queryKey: appointmentKeys.lists(),
-            });
-          }
-          break;
+          case appointmentPb.AppointmentStreamResponse.EventType.UPDATED:
+            if (appointment) {
+              queryClient.setQueryData(
+                appointmentKeys.detail(appointment.id),
+                appointment
+              );
+              queryClient.invalidateQueries({
+                queryKey: appointmentKeys.lists(),
+              });
+            }
+            break;
+
+          case appointmentPb.AppointmentStreamResponse.EventType.DELETED:
+            if (appointment) {
+              queryClient.removeQueries({
+                queryKey: appointmentKeys.detail(appointment.id),
+              });
+              queryClient.invalidateQueries({
+                queryKey: appointmentKeys.lists(),
+              });
+              toast.success(`Appointment deleted: ${appointment.title}`);
+            }
+            break;
+        }
+      },
+      (err) => {
+        console.error("Stream error:", err);
+        setTimeout(subscribeToUpdates, 3000); // reconnect
+      },
+      () => {
+        console.warn("Stream ended");
+        setTimeout(subscribeToUpdates, 3000); // reconnect
       }
-    });
+    );
   };
 
   return { subscribeToUpdates };

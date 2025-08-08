@@ -23,7 +23,6 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const createMutation = useCreateAppointment();
 
-  const isEditing = !!appointment;
   const isLoading = createMutation.isPending;
 
   const {
