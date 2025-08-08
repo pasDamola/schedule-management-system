@@ -196,22 +196,6 @@ rpc ListAppointments(ListAppointmentsRequest) returns (ListAppointmentsResponse)
 rpc StreamAppointments(google.protobuf.Empty) returns (stream AppointmentStreamResponse);
 ```
 
-## 🧪 Testing
-
-### Backend Testing
-
-```bash
-cd backend
-go test ./...
-```
-
-### Frontend Testing
-
-```bash
-cd frontend
-npm test
-```
-
 ### Manual Testing Scenarios
 
 1. **Basic Functionality Test**
@@ -266,27 +250,5 @@ npm test
    SERVER_PORT=50051
 
    # Frontend
-   REACT_APP_GRPC_URL=http://your-domain:8080
+   VITE_GRPC_URL=http://your-domain:8080
    ```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-#### Backend (.env)
-
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=schedule_management
-DB_SSLMODE=disable
-SERVER_PORT=50051
-```
-
-#### Frontend (.env)
-
-```env
-REACT_APP_GRPC_URL=http://localhost:8080
-```
