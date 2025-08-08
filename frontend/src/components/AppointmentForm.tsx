@@ -23,7 +23,6 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const createMutation = useCreateAppointment();
 
-  const isEditing = !!appointment;
   const isLoading = createMutation.isPending;
 
   const {
@@ -59,6 +58,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const onSubmit = async (data: FormData) => {
     // Validate form
+    console.log("a", appointment);
+    console.log(data);
     const validationResult = validateAppointmentForm(data);
     if (validationResult.length > 0) {
       const errorMap: Record<string, string> = {};
@@ -73,13 +74,11 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
       const startTime = combineDateTime(data.date, data.startTime);
       const endTime = combineDateTime(data.date, data.endTime);
 
-      if (appointment) {
-        await createMutation.mutateAsync({
-          title: data.title.trim(),
-          startTime,
-          endTime,
-        });
-      }
+      await createMutation.mutateAsync({
+        title: data.title.trim(),
+        startTime,
+        endTime,
+      });
 
       reset();
       setValidationErrors({});
@@ -98,7 +97,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   return (
     <div className={`bg-white rounded-lg shadow-md p-6 ${className}`}>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">
-        {isEditing ? "Edit Appointment" : "Create New Appointment"}
+        {"Create New Appointment"}
       </h2>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -227,10 +226,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             {isLoading ? (
               <div className="flex items-center">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                {isEditing ? "Updating..." : "Creating..."}
+                {"Creating..."}
               </div>
-            ) : isEditing ? (
-              "Update Appointment"
             ) : (
               "Create Appointment"
             )}

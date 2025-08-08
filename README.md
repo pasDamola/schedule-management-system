@@ -65,22 +65,13 @@ A full-stack appointment scheduling application built with React, TypeScript, Go
    cd schedule-management-system
    ```
 
-2. **Start the backend services**
+2. **Start the backend, frontend and proxy services**
 
    ```bash
-   cd backend
-   docker-compose up -d
+   docker-compose -f docker-compose.full.yml up --build
    ```
 
-3. **Build and start the frontend**
-
-   ```bash
-   cd ../frontend
-   docker build -t schedule-frontend .
-   docker run -p 3000:80 schedule-frontend
-   ```
-
-4. **Access the application**
+3. **Access the application**
    - Frontend: http://localhost:3000
    - Backend gRPC: localhost:50051
    - Backend HTTP (via Envoy): http://localhost:8080
@@ -215,40 +206,3 @@ rpc StreamAppointments(google.protobuf.Empty) returns (stream AppointmentStreamR
    - Open multiple browser tabs
    - Create/update/delete appointments in one tab
    - Verify updates appear in other tabs
-
-## 🚀 Deployment
-
-### Production Deployment
-
-1. **Build Docker images**
-
-   ```bash
-   # Backend
-   cd backend
-   docker build -t schedule-backend .
-
-   # Frontend
-   cd frontend
-   docker build -t schedule-frontend .
-   ```
-
-2. **Deploy with Docker Compose**
-
-   ```bash
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
-
-3. **Environment Variables**
-
-   ```bash
-   # Backend
-   DB_HOST=postgres
-   DB_PORT=5432
-   DB_USER=postgres
-   DB_PASSWORD=your_secure_password
-   DB_NAME=schedule_management
-   SERVER_PORT=50051
-
-   # Frontend
-   VITE_GRPC_URL=http://your-domain:8080
-   ```

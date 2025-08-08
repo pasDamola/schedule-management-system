@@ -13,7 +13,7 @@ import {
 } from "../proto/appointment/appointment";
 
 const transport = new GrpcWebFetchTransport({
-  baseUrl: import.meta.env.VITE_GRPC_URL || "http://localhost:50051",
+  baseUrl: import.meta.env.VITE_GRPC_URL || "http://localhost:8080",
 });
 
 // Instantiate the generated client with the transport.

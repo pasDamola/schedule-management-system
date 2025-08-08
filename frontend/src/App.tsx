@@ -31,12 +31,6 @@ const AppointmentManager: React.FC = () => {
 
   useAppointmentUpdates();
 
-  const handleEditAppointment = (appointment: Appointment) => {
-    setEditingAppointment(appointment);
-    setShowForm(true);
-    setSidebarOpen(false);
-  };
-
   const handleFormSuccess = () => {
     setShowForm(false);
     setEditingAppointment(undefined);
@@ -177,7 +171,7 @@ const AppointmentManager: React.FC = () => {
               )}
 
               {/* Quick Stats */}
-              <div className="bg-white rounded-lg shadow-md p-6">
+              {/* <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Quick Stats
                 </h3>
@@ -199,7 +193,7 @@ const AppointmentManager: React.FC = () => {
                     <span className="text-sm font-medium text-gray-900">0</span>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -216,7 +210,6 @@ const AppointmentManager: React.FC = () => {
             {/* Appointment List */}
             <AppointmentList
               filters={filters}
-              onEditAppointment={handleEditAppointment}
               selectedAppointments={selectedAppointments}
               onSelectAppointment={handleSelectAppointment}
               onSelectAllAppointments={handleSelectAllAppointments}
